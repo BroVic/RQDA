@@ -8,7 +8,6 @@ Assuming you have a working version of current release (and all dependencies).
 
 ```R
 install.packages("devtools") ## install it only if you haven't done it yet
-require(devtools)
 devtools::install_github("Ronggui/RQDA")
 ```
 
@@ -83,7 +82,7 @@ Download from [Baidu Cloud](https://pan.baidu.com/s/1nwsRPFAKjjdbv6nMyOsctA).
 
 
 
-## How to change the font sizes of RQDA interfacea
+## How to change the font sizes of RQDA interface
 1. There is a font setting interface in the Settings Tab.
 
 2. This can be achived by modifying ~/gtkrc-2.0 (create on if not exists), for instance:
