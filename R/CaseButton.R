@@ -9,7 +9,7 @@ AddCaseButton <- function(label=gettext("ADD", domain = "R-RQDA")){
       idx <- as.character(which(.rqda$.CasesNamesWidget[] %in%  CaseName) -1)
       ## note the position, before manipulation of items
       path <-gtkTreePathNewFromString(idx)
-      gtkTreeViewScrollToCell(slot(slot(.rqda$.CasesNamesWidget,"widget"),"widget"),
+      gtkTreeViewScrollToCell(.rqda$.CasesNamesWidget$widget,
                               path,use.align=TRUE,row.align = 0.05)
     }
   }
@@ -34,7 +34,7 @@ DeleteCaseButton <- function(label=gettext("Delete", domain = "R-RQDA")){
       dbGetQuery(.rqda$qdacon,sprintf("update caselinkage set status=0 where caseid=%i",caseid))
       ## set status in table caselinkage to 0
       CaseNamesUpdate()
-      .rqda$.FileofCase[] <- NULL
+      .rqda$.FileofCase[] <- character(0)
     }
   }
                      )

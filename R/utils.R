@@ -27,24 +27,23 @@ UpdateWidget <- function(widget,from,to=NULL){
       if (length(from) == length(to))
         items[items %in% from] <- to
     }
-    ## eval(parse(text=sprintf(".rqda$%s[] <- items",widget)))
     tryCatch(eval(parse(text = sprintf(".rqda$%s[] <- items", widget))),
              error = function(e) cat("warning msg from the replacement.\n"))
     if (length(idx)>0) {
     path <-gtkTreePathNewFromString(idx)
-    gtkTreeViewScrollToCell(slot(slot(get(widget,envir=.rqda),"widget"),"widget"),
+    gtkTreeViewScrollToCell(get(widget,envir=.rqda)$widget,
                             path,use.align=TRUE,row.align = 0.07)
   }}
 }
 
-ScrollToItem <- function(widget,item=svalue(widget)){
+ScrollToItem <- function(widget, item=svalue(widget)){
   items <- widget[]
   if (length(items)!= 0){
     Encoding(items) <- "UTF-8"
     idx <- as.character(which(items %in% item) - 1)
     if (length(idx)!=0){
       path <-gtkTreePathNewFromString(idx)
-      gtkTreeViewScrollToCell(slot(slot(widget,"widget"),"widget"), path,use.align=TRUE,row.align = 0.07)
+      gtkTreeViewScrollToCell(widget$widget, path, use.align=TRUE,row.align = 0.07)
     }}}
 
 enc <- function(x,encoding="UTF-8") {
@@ -79,7 +78,7 @@ OrderByTime <- function(date,decreasing = FALSE)
 ## dd[OrderByTime(dd)]
 
 
-MemoWidget <- function(prefix,widget,dbTable){
+MemoWidget <- function(prefix, widget, dbTable){
   ## prefix of window tile. E.g. "Code" ->  tile of gwindow becomes "Code Memo:"
   ## widget of the F-cat/C-cat list, such as widget=.rqda$.fnames_rqda
   if (is_projOpen(envir=.rqda,"qdacon")) {
@@ -89,7 +88,7 @@ MemoWidget <- function(prefix,widget,dbTable){
       }
       else {
           CloseYes <- function(currentCode){
-              withinWidget <- svalue(get(sprintf(".%smemoW",prefix),envir=.rqda))
+              withinWidget <- svalue(get(sprintf(".%smemoW", prefix),envir=.rqda))
               InRQDA <- dbGetQuery(.rqda$qdacon, sprintf("select memo from %s where name='%s'",dbTable, enc(currentCode,"UTF-8")))[1, 1]
               if (isTRUE(all.equal(withinWidget,InRQDA))) {
                   return(TRUE) } else {
@@ -100,14 +99,17 @@ MemoWidget <- function(prefix,widget,dbTable){
                       return(val)
                   }
           } ## helper function
-          IsOpen <- tryCatch(eval(parse(text=sprintf("svalue(.rqda$.%smemoW)",prefix))),error=function(e) simpleError("No opened memo widget."))
-          if (!inherits(IsOpen,"simpleError")){ ## if a widget is open
+          IsExisted <- eval(parse(text=sprintf("exists('.%smemoW', envir=.rqda)", prefix)))
+          IsOpen <- !is.null(eval(parse(text=sprintf("svalue(.rqda$.%smemoW)", prefix))))
+          if (IsExisted && IsOpen){
+            # if a widget is open
               prvSelected <- svalue(get(sprintf(".%smemo",prefix),envir=.rqda)) ## title of the memo widget
               Encoding(prvSelected) <- "UTF-8"
               prvSelected <- sub(sprintf("^%s Memo: ",prefix),"",prvSelected)
               prvSelected <- iconv(prvSelected,to="UTF-8") ## previously selected codename
               IfCont <- CloseYes(currentCode=prvSelected)}
-          if ( inherits(IsOpen,"simpleError") || IfCont){ ## if not open or the same.
+          if (!IsExisted || !IsOpen || IfCont){
+            # not open or the same.
               tryCatch(eval(parse(text=sprintf("dispose(.rqda$.%smemo)",prefix))),error=function(e) {})
               gw <- gwindow(title=sprintf(gettext("%s Memo:%s", domain = "R-RQDA"),prefix,Selected),
                             parent=getOption("widgetCoordinate"),
@@ -115,7 +117,7 @@ MemoWidget <- function(prefix,widget,dbTable){
                             height = getOption("widgetSize")[2]
                             )
               mainIcon <- system.file("icon", "mainIcon.png", package = "RQDA")
-              gw@widget@widget$SetIconFromFile(mainIcon)
+              gw$widget$SetIconFromFile(mainIcon)
               assign(sprintf(".%smemo",prefix),gw,envir=.rqda)
               assign(sprintf(".%smemo2",prefix),
                      gpanedgroup(horizontal = FALSE, container=get(sprintf(".%smemo",prefix),envir=.rqda)),
@@ -132,15 +134,15 @@ MemoWidget <- function(prefix,widget,dbTable){
               assign(sprintf("buttonOf.%smemo",prefix),mbut,envir=button) ## assign the button object
               tmp <- gtext(container=get(sprintf(".%smemo2",prefix),envir=.rqda))
               font <- pangoFontDescriptionFromString(.rqda$font)
-              gtkWidgetModifyFont(tmp@widget@widget,font)## set the default fontsize
+              gtkWidgetModifyFont(tmp$widget,font)## set the default fontsize
               assign(sprintf(".%smemoW",prefix),tmp,envir=.rqda)
               prvcontent <- dbGetQuery(.rqda$qdacon, sprintf("select memo from %s where name='%s'",dbTable,enc(Selected)))[1,1]
               if (is.na(prvcontent)) prvcontent <- ""
               Encoding(prvcontent) <- "UTF-8"
               W <- get(sprintf(".%smemoW",prefix),envir=.rqda)
-              add(W,prvcontent,do.newline=FALSE)
+              insert(W, prvcontent, do.newline=FALSE)
               addHandlerUnrealize(get(sprintf(".%smemo",prefix),envir=.rqda),handler <- function(h,...)  {!CloseYes(Selected)})
-              gSignalConnect(tmp@widget@widget$GetBuffer(), "changed", function(h,...) {
+              gSignalConnect(tmp$widget$GetBuffer(), "changed", function(h,...) {
                   mbut <- get(sprintf("buttonOf.%smemo",prefix),envir=button)
                   enabled(mbut) <- TRUE
               }
@@ -178,7 +180,7 @@ print.Info4Widget <- function(x, ...){
     ComputeCallbackFun <- function(FileName, rowid) {
         CallBackFUN <- function(widget, event, ...) {
             ViewFileFunHelper(FileName, hightlight = FALSE)
-            textView <- .rqda$.openfile_gui@widget@widget
+            textView <- .rqda$.openfile_gui$widget
             buffer <- textView$GetBuffer()
             mark1 <- gtkTextBufferGetMark(buffer, sprintf("%s.1",
                 rowid))
@@ -201,14 +203,14 @@ print.Info4Widget <- function(x, ...){
         .gw <- gwindow(title = attr(x,"descr"), parent = getOption("widgetCoordinate"),
                        width = getOption("widgetSize")[1], height = getOption("widgetSize")[2])
         mainIcon <- system.file("icon", "mainIcon.png", package = "RQDA")
-        .gw@widget@widget$SetIconFromFile(mainIcon)
+        .gw$widget$SetIconFromFile(mainIcon)
         ## assign(sprintf(".codingsOf%s", "codingsByone"), .gw, env = .rqda)
         .retreivalgui <- gtext(container = .gw)
         font <- pangoFontDescriptionFromString(.rqda$font)
-        gtkWidgetModifyFont(.retreivalgui@widget@widget, font)
-        .retreivalgui@widget@widget$SetPixelsBelowLines(5)
-        .retreivalgui@widget@widget$SetPixelsInsideWrap(5)
-        buffer <- .retreivalgui@widget@widget$GetBuffer()
+        gtkWidgetModifyFont(.retreivalgui$widget, font)
+        .retreivalgui$widget$SetPixelsBelowLines(5)
+        .retreivalgui$widget$SetPixelsInsideWrap(5)
+        buffer <- .retreivalgui$widget$GetBuffer()
         buffer$createTag("red", foreground = "red")
         iter <- buffer$getIterAtOffset(0)$iter
         apply(x, 1, function(x) {
@@ -222,7 +224,7 @@ print.Info4Widget <- function(x, ...){
             ## widget$Add(lab)
             ## gSignalConnect(widget, "button-press-event", ComputeCallbackFun(x[["filename"]],
             ##    as.numeric(x[["rowid"]])))
-            ## .retreivalgui@widget@widget$addChildAtAnchor(widget, anchor)
+            ## .retreivalgui$widget$addChildAtAnchor(widget, anchor)
             ## widget$showAll()
             iter$ForwardChar()
             buffer$insert(iter, "\n")
@@ -337,8 +339,8 @@ RunOnSelected <- function(x,multiple=TRUE,expr,enclos=parent.frame(),title=NULL,
   if (is.null(title)) title <- ifelse(multiple,"Select one or more","Select one")
   g <- gwindow(title=title,width=250,height=600,parent=c(hpos, vpos))
   x1<-ggroup(FALSE,container=g)
-  ##x1@widget@widget$parent$parent$parent$SetTitle(title)
-  ##x1@widget@widget$parent$parent$parent$SetDefaultSize(200, 500)
+  ##x1$widget$parent$parent$parent$SetTitle(title)
+  ##x1$widget$parent$parent$parent$SetDefaultSize(200, 500)
   x2<-gtable(x,multiple=multiple,container=x1,expand=TRUE)
   gbutton(gettext("Cancel", domain = "R-RQDA"),container=x1,handler=function(h,...){
     dispose(x1)
@@ -359,18 +361,18 @@ RunOnSelected <- function(x,multiple=TRUE,expr,enclos=parent.frame(),title=NULL,
 }
 
 
-gselect.list <- function(list,multiple=TRUE,title=NULL,width=200, height=500,...){
+gselect.list <- function(list, multiple=TRUE, title=NULL, width=200, height=500,...){
   ## gtk version of select.list(), revised on 21 Apr. 2010 to fix a bug (crash R with 2.18 or newer libgtk2).
   ## Thanks go to John Verzani for his help.
-  if (is.null(title)) title <- ifelse(multiple,"Select one or more","Select one")
+  if (is.null(title)) title <- ifelse(multiple, "Select one or more","Select one")
   helper <- function(){
       ans<-new.env()
        dlg <- gbasicdialog(title=title,handler=function(h,...){
           value <- svalue(x2)
           assign("selected",value,envir=h$action$env)
-          },action=list(envir=ans))
+          }, action=list(envir=ans))
       x2<-gtable(list,multiple=multiple,container=dlg,expand=TRUE)
-      dlg@widget@widget$Move(size(.rqda$.root_rqdagui)[1],2)
+      dlg$widget$window$Move(size(.rqda$.root_rqdagui)[1], 2)
       size(dlg) <- c(width,height)
       visible(dlg, set=TRUE)
       ans
@@ -504,7 +506,7 @@ ShowFileProperty <- function(Fid = GetFileId(,"selected"),focus=TRUE) {
             width = min(c(gdkScreenWidth() - size(.rqda$.root_rqdagui)[1] -20,getOption("widgetSize")[1])),
             height = 50)
       mainIcon <- system.file("icon", "mainIcon.png", package = "RQDA")
-      gw@widget@widget$SetIconFromFile(mainIcon)
+      gw$widget$SetIconFromFile(mainIcon)
       sfp <- glabel(val,container=gw)
       assign(".sfp",sfp,envir=.rqda)
       "focus<-"(gw,value=focus)
